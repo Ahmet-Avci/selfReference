@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,6 +72,22 @@
         input[type="range"] {
             width: 100%;
             margin: 10px 0;
+            appearance: none;
+            height: 10px;
+            background: var(--primary-color);
+            border-radius: 5px;
+            outline: none;
+            transition: background 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--white);
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
         }
 
         canvas {
@@ -80,6 +97,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Dil Seçimi Ekranı -->
     <div class="container" id="language-selection">
@@ -96,23 +114,34 @@
         <p id="question">Question will appear here</p>
         <div class="range-container">
             <input type="range" id="score-range" min="0" max="100" value="50" oninput="updateRangeValue(this.value)">
-            <p id="score-label">Score: <span id="range-value">50</span></p>
+            <p id="score-label">Puan: <span id="range-value">50</span></p>
         </div>
-        <button onclick="submitAnswer()">Next</button>
+        <button id="nextButton" onclick="submitAnswer()">Sonraki</button>
     </div>
 
     <!-- Bar Chart -->
     <canvas id="bar-chart" style="display: none;"></canvas>
 
     <!-- Line Chart -->
-    <button id="monthly-chart-button" style="display: none;" onclick="showMonthlyChart()">Show Monthly Progress</button>
+    <button id="monthly-chart-button" style="display: none;" onclick="showMonthlyChart()">Aylık İlerlemeyi
+        Göster</button>
     <canvas id="monthly-chart" style="display: none;"></canvas>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        window.onload = () => {
+            const language = localStorage.getItem("language");
+            if (language) {
+                setLanguage(language);
+                const questionContainer = document.getElementById("question-container");
+                questionContainer.style.display = "block";
+                showMonthlyChart();
+            }
+        };
+
         const translations = {
             en: {
-                title: "Dynamic Self-Awareness",
+                title: "Dynamic Self-Awareness Report",
                 questions: [
                     "How well did I manage my emotions today?",
                     "Did I act in line with my personal values?",
@@ -120,14 +149,14 @@
                     "Was I able to maintain healthy relationships?",
                     "Did I prioritize self-care today?"
                 ],
-                scoreLabel: "Score",
+                scoreLabel: "Record your score by dragging the slider. 0 represents the most negative, 100 represents the most positive outcome.",
                 nextButton: "Next",
                 monthlyButton: "Show Monthly Progress",
                 barChartTitle: "Self-Awareness Scores",
                 monthlyChartTitle: "Monthly Progress"
             },
             tr: {
-                title: "Dinamik Öz Farkındalık",
+                title: "Dinamik Öz Farkındalık Raporu",
                 questions: [
                     "Bugün duygularımı ne kadar iyi yönettim?",
                     "Kişisel değerlerime uygun davrandım mı?",
@@ -135,7 +164,7 @@
                     "Sağlıklı ilişkileri koruyabildim mi?",
                     "Bugün kendime öncelik verdim mi?"
                 ],
-                scoreLabel: "Puan",
+                scoreLabel: "Sonucunu slider'ı sürükleyerek seç. 0 en olsumsuz, 100 en olumlu sonucu temsil eder.",
                 nextButton: "Sonraki",
                 monthlyButton: "Aylık İlerlemeyi Göster",
                 barChartTitle: "Öz Farkındalık Puanları",
@@ -155,6 +184,7 @@
         const barChartElement = document.getElementById("bar-chart");
         const monthlyChartElement = document.getElementById("monthly-chart");
         const monthlyChartButton = document.getElementById("monthly-chart-button");
+        const nextButton = document.getElementById("nextButton");
 
         function setLanguage(selectedLanguage) {
             language = selectedLanguage;
@@ -164,14 +194,34 @@
             languageSelection.style.display = "none";
             questionContainer.style.display = "block";
 
+            localStorage.setItem("language", language);
             document.getElementById("title").textContent = translations[language].title;
-            document.getElementById("score-label").textContent = translations[language].scoreLabel + ":";
+            document.getElementById("score-label").textContent = translations[language].scoreLabel;
             document.querySelector("button").textContent = translations[language].nextButton;
+            document.getElementById("monthly-chart-button").textContent = translations[language].monthlyButton;
+            document.getElementById("nextButton").textContent = translations[language].nextButton;
             showQuestion();
         }
 
         function updateRangeValue(value) {
             rangeValueElement.textContent = value;
+
+            let red = 0, green = 0, blue = 0;
+
+            if (value <= 50) {
+                // 0-50 arasında kırmızıdan maviye geçiş
+                red = 255 - Math.round((value / 50) * 255); // Kırmızı azalır
+                blue = Math.round((value / 50) * 255);      // Mavi artar
+                green = 0;                                  // Yeşil sabit
+            } else {
+                // 50-100 arasında maviden yeşile geçiş
+                blue = 255 - Math.round(((value - 50) / 50) * 255); // Mavi azalır
+                green = Math.round(((value - 50) / 50) * 255);      // Yeşil artar
+                red = 0;                                            // Kırmızı sabit
+            }
+
+            const color = `rgb(${red}, ${green}, ${blue})`;
+            rangeElement.style.background = color;
         }
 
         function showQuestion() {
@@ -189,14 +239,10 @@
             const score = parseInt(rangeElement.value, 10);
             answers.push(score);
             currentQuestionIndex++;
-            showQuestion();
-        }
-
-        function saveToHistory(averageScore) {
             const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
-            const date = new Date().toISOString().split("T")[0];
-            history.push({ date, averageScore });
+            history.push({ date: new Date().toISOString().split("T")[0], averageScore: score });
             localStorage.setItem("selfAwarenessHistory", JSON.stringify(history));
+            showQuestion();
         }
 
         function generateBarChart() {
@@ -205,22 +251,20 @@
             const negativeData = answers.map(score => (score < 50 ? 50 - score : 0));
             const averageScore = answers.reduce((sum, score) => sum + score, 0) / answers.length;
 
-            saveToHistory(averageScore);
-
             new Chart(barChartElement, {
                 type: 'bar',
                 data: {
                     labels,
                     datasets: [
                         {
-                            label: 'Positive (Above 50)',
+                            label: 'Positive',
                             data: positiveData,
                             backgroundColor: 'rgba(75, 192, 192, 0.2)',
                             borderColor: 'rgba(75, 192, 192, 1)',
                             borderWidth: 1
                         },
                         {
-                            label: 'Negative (Below 50)',
+                            label: 'Negative',
                             data: negativeData,
                             backgroundColor: 'rgba(255, 99, 132, 0.2)',
                             borderColor: 'rgba(255, 99, 132, 1)',
@@ -291,4 +335,5 @@
         }
     </script>
 </body>
+
 </html>

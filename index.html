@@ -6,9 +6,10 @@
     <title>Dynamic Self-Awareness</title>
     <style>
         :root {
-            --primary-color: #4F46E5;
-            --secondary-color: #A78BFA;
-            --background-color: #F3F4F6;
+            --primary-color: #FF6F61;
+            --secondary-color: #FF9F80;
+            --accent-color: #FFD700;
+            --background-color: #F7FAFC;
             --text-color: #333;
             --white: #FFFFFF;
         }
@@ -18,10 +19,10 @@
             background-color: var(--background-color);
             color: var(--text-color);
             margin: 0;
-            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 20px;
         }
 
         .container {
@@ -32,7 +33,7 @@
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             padding: 20px;
             text-align: center;
-            margin-top: 20px;
+            margin-bottom: 20px;
         }
 
         h1 {
@@ -60,11 +61,12 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 1em;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.2s;
         }
 
         button:hover {
             background-color: var(--secondary-color);
+            transform: scale(1.05);
         }
 
         textarea {
@@ -74,6 +76,7 @@
             border: 1px solid #ddd;
             margin-bottom: 20px;
             padding: 10px;
+            font-size: 1em;
         }
 
         .history {
@@ -85,18 +88,21 @@
         }
 
         .report {
-            background-color: var(--white);
+            background-color: var(--accent-color);
             border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            margin-top: 20px;
+            color: var(--white);
             width: 90%;
             max-width: 600px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         .report h2 {
-            color: var(--primary-color);
             margin-bottom: 10px;
+        }
+
+        .report p {
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -124,10 +130,13 @@
                 question2_yes: "How did I achieve this?",
                 question2_no: "Why couldn't I do my best?",
                 question3: "What can I do differently tomorrow?",
+                yes: "Yes",
+                no: "No",
+                submit: "Submit",
                 summary: "Your Answers",
                 restart: "Restart",
                 reportTitle: "Personal Insight Report",
-                reportContent: "Based on your recent answers, you have been consistent in identifying areas for improvement and celebrating successes. Keep focusing on actionable goals to enhance your progress."
+                reportContent: "Based on your answers, you've been reflecting well on your actions. Keep focusing on small improvements daily to achieve your goals."
             },
             tr: {
                 title: "Dinamik Öz Farkındalık",
@@ -136,24 +145,27 @@
                 question2_yes: "Bunu nasıl başardım?",
                 question2_no: "Neden elimden geleni yapamadım?",
                 question3: "Yarın farklı olarak ne yapabilirim?",
+                yes: "Evet",
+                no: "Hayır",
+                submit: "Gönder",
                 summary: "Cevaplarınız",
                 restart: "Tekrar Başla",
                 reportTitle: "Kişisel İçgörü Raporu",
-                reportContent: "Son cevaplarınıza dayanarak, gelişim alanlarını belirleme ve başarılarınızı kutlama konusunda tutarlı oldunuz. İlerlemenizi artırmak için uygulanabilir hedeflere odaklanmaya devam edin."
+                reportContent: "Cevaplarınıza dayanarak, eylemleriniz üzerine iyi düşündüğünüzü görüyoruz. Hedeflerinize ulaşmak için her gün küçük iyileştirmelere odaklanmaya devam edin."
             }
         };
 
         let language = "en";
-        let currentQuestion = 0;
-        let answers = [];
+        let currentQuestionIndex = 0;
+        const answers = [];
         const container = document.querySelector(".container");
         const reportSection = document.getElementById("report-section");
 
         const questions = [
-            { id: "question1", type: "choice", options: ["Yes", "No"], dependsOn: null },
-            { id: "question2_yes", type: "text", dependsOn: "Yes" },
-            { id: "question2_no", type: "text", dependsOn: "No" },
-            { id: "question3", type: "text", dependsOn: null }
+            { id: "question1", type: "choice", options: ["yes", "no"] },
+            { id: "question2_yes", type: "text", dependsOn: "yes" },
+            { id: "question2_no", type: "text", dependsOn: "no" },
+            { id: "question3", type: "text" }
         ];
 
         function setLanguage(selectedLanguage) {
@@ -162,33 +174,34 @@
         }
 
         function showQuestion(question) {
-            const translation = translations[language];
+            const t = translations[language];
+            const questionText = t[question.id];
             container.innerHTML = `
-                <h1>${translation.title}</h1>
-                <p>${translation[question.id]}</p>
+                <h1>${t.title}</h1>
+                <p>${questionText}</p>
                 ${
                     question.type === "choice"
                         ? `
                             <div class="button-container">
                                 ${question.options.map(option => `
-                                    <button onclick="handleAnswer('${option}')">${translation[option.toLowerCase()] || option}</button>
-                                `).join("")}
+                                    <button onclick="handleAnswer('${option}')">${t[option]}</button>
+                                `).join('')}
                             </div>
                         `
                         : `
-                            <textarea id="text-answer" placeholder="${translation.intro}"></textarea>
-                            <button onclick="handleTextAnswer()">Submit</button>
+                            <textarea id="text-answer" placeholder="${t.intro}"></textarea>
+                            <button onclick="handleTextAnswer()">${t.submit}</button>
                         `
                 }
             `;
         }
 
         function handleAnswer(answer) {
-            const current = questions[currentQuestion];
-            answers.push({ question: translations[language][current.id], answer });
+            const currentQuestion = questions[currentQuestionIndex];
+            answers.push({ question: translations[language][currentQuestion.id], answer: translations[language][answer] || answer });
 
-            const nextQuestion = questions.find(q => q.dependsOn === null || q.dependsOn === answer);
-            currentQuestion = questions.indexOf(nextQuestion);
+            const nextQuestion = questions.find(q => q.dependsOn === answer || !q.dependsOn);
+            currentQuestionIndex = questions.indexOf(nextQuestion);
 
             if (nextQuestion) {
                 showQuestion(nextQuestion);
@@ -200,12 +213,12 @@
         function handleTextAnswer() {
             const textAnswer = document.getElementById("text-answer").value.trim();
             if (textAnswer) {
-                const current = questions[currentQuestion];
-                answers.push({ question: translations[language][current.id], answer: textAnswer });
+                const currentQuestion = questions[currentQuestionIndex];
+                answers.push({ question: translations[language][currentQuestion.id], answer: textAnswer });
 
-                currentQuestion++;
-                if (currentQuestion < questions.length) {
-                    showQuestion(questions[currentQuestion]);
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) {
+                    showQuestion(questions[currentQuestionIndex]);
                 } else {
                     showSummary();
                 }
@@ -215,29 +228,29 @@
         }
 
         function showSummary() {
-            const translation = translations[language];
+            const t = translations[language];
             container.innerHTML = `
-                <h1>${translation.summary}</h1>
+                <h1>${t.summary}</h1>
                 <div class="history">
-                    ${answers.map(ans => `
-                        <p><strong>${ans.question}</strong><br>${ans.answer}</p>
-                    `).join("")}
+                    ${answers.map((ans, i) => `
+                        <p><strong>${i + 1}. ${ans.question}</strong><br>${ans.answer}</p>
+                    `).join('')}
                 </div>
-                <button onclick="restart()">${translation.restart}</button>
+                <button onclick="restart()">${t.restart}</button>
             `;
             generateReport();
         }
 
         function generateReport() {
-            const translation = translations[language];
+            const t = translations[language];
             reportSection.style.display = "block";
-            document.getElementById("report-title").textContent = translation.reportTitle;
-            document.getElementById("report-content").textContent = translation.reportContent;
+            document.getElementById("report-title").textContent = t.reportTitle;
+            document.getElementById("report-content").textContent = t.reportContent;
         }
 
         function restart() {
-            currentQuestion = 0;
-            answers = [];
+            currentQuestionIndex = 0;
+            answers.length = 0;
             setLanguage(language);
             reportSection.style.display = "none";
         }

@@ -90,7 +90,7 @@
         </div>
     </div>
 
-    <!-- Soru ve Grafikler -->
+    <!-- Soru ve Grafik -->
     <div class="container" id="question-container" style="display: none;">
         <h1 id="title"></h1>
         <p id="question">Question will appear here</p>
@@ -101,8 +101,7 @@
         <button onclick="submitAnswer()">Next</button>
     </div>
 
-    <canvas id="positive-chart" style="display: none;"></canvas>
-    <canvas id="negative-chart" style="display: none;"></canvas>
+    <canvas id="single-chart" style="display: none;"></canvas>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -115,9 +114,7 @@
                     "How much progress did I make towards my goals?",
                     "Was I able to maintain healthy relationships?",
                     "Did I prioritize self-care today?"
-                ],
-                positiveChartTitle: "Positive Aspects",
-                negativeChartTitle: "Areas to Improve"
+                ]
             },
             tr: {
                 title: "Dinamik Öz Farkındalık",
@@ -127,9 +124,7 @@
                     "Hedeflerime doğru ne kadar ilerleme kaydettim?",
                     "Sağlıklı ilişkileri koruyabildim mi?",
                     "Bugün kendime öncelik verdim mi?"
-                ],
-                positiveChartTitle: "Olumlu Yönler",
-                negativeChartTitle: "Geliştirilmesi Gereken Alanlar"
+                ]
             }
         };
 
@@ -142,8 +137,7 @@
         const questionElement = document.getElementById("question");
         const rangeValueElement = document.getElementById("range-value");
         const rangeElement = document.getElementById("score-range");
-        const positiveChartElement = document.getElementById("positive-chart");
-        const negativeChartElement = document.getElementById("negative-chart");
+        const singleChartElement = document.getElementById("single-chart");
 
         function setLanguage(selectedLanguage) {
             language = selectedLanguage;
@@ -171,7 +165,7 @@
                 rangeElement.value = 50;
                 updateRangeValue(50);
             } else {
-                generateCharts();
+                generateChart();
             }
         }
 
@@ -182,61 +176,52 @@
             showQuestion();
         }
 
-        function generateCharts() {
-            const positiveData = answers;
-            const negativeData = positiveData.map(score => 100 - score);
+        function generateChart() {
+            const labels = translations[language].questions;
+            const positiveData = answers.map(score => (score >= 50 ? score - 50 : 0));
+            const negativeData = answers.map(score => (score < 50 ? 50 - score : 0));
 
-            new Chart(positiveChartElement, {
+            new Chart(singleChartElement, {
                 type: 'bar',
                 data: {
-                    labels: translations[language].questions,
-                    datasets: [{
-                        label: translations[language].positiveChartTitle,
-                        data: positiveData,
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Positive (Above 50)',
+                            data: positiveData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Negative (Below 50)',
+                            data: negativeData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     plugins: {
-                        legend: { display: false },
-                        title: { display: true, text: translations[language].positiveChartTitle }
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Self-Awareness Scores' }
                     },
                     scales: {
-                        y: { beginAtZero: true, max: 100 }
-                    }
-                }
-            });
-
-            new Chart(negativeChartElement, {
-                type: 'bar',
-                data: {
-                    labels: translations[language].questions,
-                    datasets: [{
-                        label: translations[language].negativeChartTitle,
-                        data: negativeData,
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false },
-                        title: { display: true, text: translations[language].negativeChartTitle }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, max: 100 }
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => `${value} %`
+                            }
+                        }
                     }
                 }
             });
 
             questionContainer.style.display = "none";
-            positiveChartElement.style.display = "block";
-            negativeChartElement.style.display = "block";
+            singleChartElement.style.display = "block";
         }
 
         // Dil Seçimi ile Başlat

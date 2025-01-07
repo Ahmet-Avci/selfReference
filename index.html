@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Self-Awareness</title>
+    <meta name="description" content="Dynamic Self-Awareness is your personal tool to measure and analyze your self-awareness, emotions, and daily goals. Track your progress with interactive charts.">
+    <meta name="keywords" content="self-awareness, daily progress, emotional management, personal development, self-improvement">
+    <meta name="author" content="Ahmet Avcı">
+    <title>Dynamic Self-Awareness | Track and Improve Your Daily Progress</title>
     <style>
         :root {
             --primary-color: #4CAF50;
@@ -153,7 +156,8 @@
                 nextButton: "Next",
                 monthlyButton: "Show Monthly Progress",
                 barChartTitle: "Self-Awareness Scores",
-                monthlyChartTitle: "Monthly Progress"
+                monthlyChartTitle: "Monthly Emotional Fluctuations",
+                monthlyChartSubtitle: "Average scores over the last 30 days"
             },
             tr: {
                 title: "Dinamik Öz Farkındalık Raporu",
@@ -168,7 +172,8 @@
                 nextButton: "Sonraki",
                 monthlyButton: "Aylık İlerlemeyi Göster",
                 barChartTitle: "Öz Farkındalık Puanları",
-                monthlyChartTitle: "Aylık İlerleme"
+                monthlyChartTitle: "Aylık Duygu Durum Dalgalanmaları",
+                monthlyChartSubtitle: "Son 30 gün içindeki ortalama puanlar"
             }
         };
 
@@ -231,8 +236,26 @@
                 rangeElement.value = 50;
                 updateRangeValue(50);
             } else {
+                const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
+                const today = new Date().toISOString().split("T")[0];
+                const todayList = history.filter(item => item.date == today);
+                const avarage = calculateAverage(todayList.map(item => item.averageScore));
+                const clearList = history.filter(item => item.date != today);
+                clearList.push({ date: new Date().toISOString().split("T")[0], averageScore: avarage });
+                localStorage.setItem("selfAwarenessHistory", JSON.stringify(clearList));
                 generateBarChart();
             }
+        }
+
+        function calculateAverage(numbers) {
+            if (numbers.length === 0) {
+                return 0; // Eğer liste boşsa, 0 döndür
+            }
+
+            const sum = numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+            const average = sum / numbers.length;
+
+            return average || 50;
         }
 
         function submitAnswer() {
@@ -318,13 +341,13 @@
                     responsive: true,
                     plugins: {
                         legend: { display: true, position: 'top' },
-                        title: { display: true, text: translations[language].monthlyChartTitle }
+                        title: { display: true, text: translations[language].monthlyChartSubtitle }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
                             max: 100,
-                            ticks: { callback: value => `${value} %` }
+                            ticks: { callback: value => `${value}` }
                         }
                     }
                 }

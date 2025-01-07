@@ -88,6 +88,9 @@
             <button onclick="setLanguage('en')">English</button>
             <button onclick="setLanguage('tr')">Türkçe</button>
         </div>
+        <div class="button-container">
+            <button id="monthly-chart-button" style="display: none;" onclick="showMonthlyChart()">Show Monthly Progress</button>
+        </div>
     </div>
 
     <!-- Soru ve Grafik -->
@@ -102,6 +105,7 @@
     </div>
 
     <canvas id="single-chart" style="display: none;"></canvas>
+    <canvas id="monthly-chart" style="display: none;"></canvas>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -226,6 +230,56 @@
 
         // Dil Seçimi ile Başlat
         languageSelection.style.display = "block";
+
+        function saveToHistory(score) {
+    const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
+    const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD formatında tarih
+    history.push({ date, score });
+    localStorage.setItem("selfAwarenessHistory", JSON.stringify(history));
+}
+
+function showMonthlyChart() {
+    const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
+    const maxDays = 30;
+
+    // Son 30 günü al
+    const recentHistory = history.slice(-maxDays);
+
+    const labels = recentHistory.map(item => item.date);
+    const data = recentHistory.map(item => item.score);
+
+    const monthlyChartElement = document.getElementById("monthly-chart");
+    monthlyChartElement.style.display = "block";
+
+    new Chart(monthlyChartElement, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Monthly Self-Awareness Progress',
+                data,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true, position: 'top' },
+                title: { display: true, text: 'Monthly Progress' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { callback: value => `${value} %` }
+                }
+            }
+        }
+    });
+}
     </script>
 </body>
 </html>

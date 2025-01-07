@@ -6,10 +6,10 @@
     <title>Dynamic Self-Awareness</title>
     <style>
         :root {
-            --primary-color: #FF6F61;
-            --secondary-color: #FF9F80;
-            --accent-color: #FFD700;
-            --background-color: #F7FAFC;
+            --primary-color: #4CAF50;
+            --secondary-color: #81C784;
+            --negative-color: #FF6F61;
+            --background-color: #F5F5F5;
             --text-color: #333;
             --white: #FFFFFF;
         }
@@ -47,12 +47,6 @@
             margin-bottom: 20px;
         }
 
-        .button-container {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-        }
-
         button {
             background-color: var(--primary-color);
             color: var(--white);
@@ -69,191 +63,184 @@
             transform: scale(1.05);
         }
 
-        textarea {
+        .range-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        input[type="range"] {
             width: 100%;
-            height: 100px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            margin-bottom: 20px;
-            padding: 10px;
-            font-size: 1em;
+            margin: 10px 0;
         }
 
-        .history {
+        canvas {
             margin-top: 20px;
-            text-align: left;
-            background-color: var(--background-color);
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .report {
-            background-color: var(--accent-color);
-            border-radius: 12px;
-            padding: 20px;
-            color: var(--white);
             width: 90%;
             max-width: 600px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .report h2 {
-            margin-bottom: 10px;
-        }
-
-        .report p {
-            line-height: 1.5;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 id="title">Welcome</h1>
-        <p id="intro">Please select your language / Lütfen dilinizi seçin:</p>
+    <!-- Dil Seçimi Ekranı -->
+    <div class="container" id="language-selection">
+        <h1>Choose Your Language / Dilinizi Seçin</h1>
         <div class="button-container">
             <button onclick="setLanguage('en')">English</button>
             <button onclick="setLanguage('tr')">Türkçe</button>
         </div>
     </div>
 
-    <div id="report-section" class="report" style="display: none;">
-        <h2 id="report-title"></h2>
-        <p id="report-content"></p>
+    <!-- Soru ve Grafikler -->
+    <div class="container" id="question-container" style="display: none;">
+        <h1 id="title"></h1>
+        <p id="question">Question will appear here</p>
+        <div class="range-container">
+            <input type="range" id="score-range" min="0" max="100" value="50" oninput="updateRangeValue(this.value)">
+            <p>Score: <span id="range-value">50</span></p>
+        </div>
+        <button onclick="submitAnswer()">Next</button>
     </div>
 
+    <canvas id="positive-chart" style="display: none;"></canvas>
+    <canvas id="negative-chart" style="display: none;"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const translations = {
             en: {
                 title: "Dynamic Self-Awareness",
-                intro: "Please answer the following questions honestly:",
-                question1: "Did I do my best today?",
-                question2_yes: "How did I achieve this?",
-                question2_no: "Why couldn't I do my best?",
-                question3: "What can I do differently tomorrow?",
-                yes: "Yes",
-                no: "No",
-                submit: "Submit",
-                summary: "Your Answers",
-                restart: "Restart",
-                reportTitle: "Personal Insight Report",
-                reportContent: "Based on your answers, you've been reflecting well on your actions. Keep focusing on small improvements daily to achieve your goals."
+                questions: [
+                    "How well did I manage my emotions today?",
+                    "Did I act in line with my personal values?",
+                    "How much progress did I make towards my goals?",
+                    "Was I able to maintain healthy relationships?",
+                    "Did I prioritize self-care today?"
+                ],
+                positiveChartTitle: "Positive Aspects",
+                negativeChartTitle: "Areas to Improve"
             },
             tr: {
                 title: "Dinamik Öz Farkındalık",
-                intro: "Lütfen aşağıdaki soruları dürüstçe cevaplayın:",
-                question1: "Bugün elimden gelenin en iyisini yaptım mı?",
-                question2_yes: "Bunu nasıl başardım?",
-                question2_no: "Neden elimden geleni yapamadım?",
-                question3: "Yarın farklı olarak ne yapabilirim?",
-                yes: "Evet",
-                no: "Hayır",
-                submit: "Gönder",
-                summary: "Cevaplarınız",
-                restart: "Tekrar Başla",
-                reportTitle: "Kişisel İçgörü Raporu",
-                reportContent: "Cevaplarınıza dayanarak, eylemleriniz üzerine iyi düşündüğünüzü görüyoruz. Hedeflerinize ulaşmak için her gün küçük iyileştirmelere odaklanmaya devam edin."
+                questions: [
+                    "Bugün duygularımı ne kadar iyi yönettim?",
+                    "Kişisel değerlerime uygun davrandım mı?",
+                    "Hedeflerime doğru ne kadar ilerleme kaydettim?",
+                    "Sağlıklı ilişkileri koruyabildim mi?",
+                    "Bugün kendime öncelik verdim mi?"
+                ],
+                positiveChartTitle: "Olumlu Yönler",
+                negativeChartTitle: "Geliştirilmesi Gereken Alanlar"
             }
         };
 
         let language = "en";
         let currentQuestionIndex = 0;
         const answers = [];
-        const container = document.querySelector(".container");
-        const reportSection = document.getElementById("report-section");
 
-        const questions = [
-            { id: "question1", type: "choice", options: ["yes", "no"] },
-            { id: "question2_yes", type: "text", dependsOn: "yes" },
-            { id: "question2_no", type: "text", dependsOn: "no" },
-            { id: "question3", type: "text" }
-        ];
+        const questionContainer = document.getElementById("question-container");
+        const languageSelection = document.getElementById("language-selection");
+        const questionElement = document.getElementById("question");
+        const rangeValueElement = document.getElementById("range-value");
+        const rangeElement = document.getElementById("score-range");
+        const positiveChartElement = document.getElementById("positive-chart");
+        const negativeChartElement = document.getElementById("negative-chart");
 
         function setLanguage(selectedLanguage) {
             language = selectedLanguage;
-            showQuestion(questions[0]);
-        }
-
-        function showQuestion(question) {
-            const t = translations[language];
-            const questionText = t[question.id];
-            container.innerHTML = `
-                <h1>${t.title}</h1>
-                <p>${questionText}</p>
-                ${
-                    question.type === "choice"
-                        ? `
-                            <div class="button-container">
-                                ${question.options.map(option => `
-                                    <button onclick="handleAnswer('${option}')">${t[option]}</button>
-                                `).join('')}
-                            </div>
-                        `
-                        : `
-                            <textarea id="text-answer" placeholder="${t.intro}"></textarea>
-                            <button onclick="handleTextAnswer()">${t.submit}</button>
-                        `
-                }
-            `;
-        }
-
-        function handleAnswer(answer) {
-            const currentQuestion = questions[currentQuestionIndex];
-            answers.push({ question: translations[language][currentQuestion.id], answer: translations[language][answer] || answer });
-
-            const nextQuestion = questions.find(q => q.dependsOn === answer || !q.dependsOn);
-            currentQuestionIndex = questions.indexOf(nextQuestion);
-
-            if (nextQuestion) {
-                showQuestion(nextQuestion);
-            } else {
-                showSummary();
-            }
-        }
-
-        function handleTextAnswer() {
-            const textAnswer = document.getElementById("text-answer").value.trim();
-            if (textAnswer) {
-                const currentQuestion = questions[currentQuestionIndex];
-                answers.push({ question: translations[language][currentQuestion.id], answer: textAnswer });
-
-                currentQuestionIndex++;
-                if (currentQuestionIndex < questions.length) {
-                    showQuestion(questions[currentQuestionIndex]);
-                } else {
-                    showSummary();
-                }
-            } else {
-                alert("Please enter an answer!");
-            }
-        }
-
-        function showSummary() {
-            const t = translations[language];
-            container.innerHTML = `
-                <h1>${t.summary}</h1>
-                <div class="history">
-                    ${answers.map((ans, i) => `
-                        <p><strong>${i + 1}. ${ans.question}</strong><br>${ans.answer}</p>
-                    `).join('')}
-                </div>
-                <button onclick="restart()">${t.restart}</button>
-            `;
-            generateReport();
-        }
-
-        function generateReport() {
-            const t = translations[language];
-            reportSection.style.display = "block";
-            document.getElementById("report-title").textContent = t.reportTitle;
-            document.getElementById("report-content").textContent = t.reportContent;
-        }
-
-        function restart() {
             currentQuestionIndex = 0;
             answers.length = 0;
-            setLanguage(language);
-            reportSection.style.display = "none";
+
+            // Dil Seçimi Ekranını Gizle
+            languageSelection.style.display = "none";
+
+            // Soru Ekranını Göster
+            questionContainer.style.display = "block";
+
+            // Başlangıç Sorusu Göster
+            showQuestion();
         }
+
+        function updateRangeValue(value) {
+            rangeValueElement.textContent = value;
+        }
+
+        function showQuestion() {
+            const questions = translations[language].questions;
+            if (currentQuestionIndex < questions.length) {
+                questionElement.textContent = questions[currentQuestionIndex];
+                rangeElement.value = 50;
+                updateRangeValue(50);
+            } else {
+                generateCharts();
+            }
+        }
+
+        function submitAnswer() {
+            const score = parseInt(rangeElement.value, 10);
+            answers.push(score);
+            currentQuestionIndex++;
+            showQuestion();
+        }
+
+        function generateCharts() {
+            const positiveData = answers;
+            const negativeData = positiveData.map(score => 100 - score);
+
+            new Chart(positiveChartElement, {
+                type: 'bar',
+                data: {
+                    labels: translations[language].questions,
+                    datasets: [{
+                        label: translations[language].positiveChartTitle,
+                        data: positiveData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: translations[language].positiveChartTitle }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            new Chart(negativeChartElement, {
+                type: 'bar',
+                data: {
+                    labels: translations[language].questions,
+                    datasets: [{
+                        label: translations[language].negativeChartTitle,
+                        data: negativeData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: translations[language].negativeChartTitle }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            questionContainer.style.display = "none";
+            positiveChartElement.style.display = "block";
+            negativeChartElement.style.display = "block";
+        }
+
+        // Dil Seçimi ile Başlat
+        languageSelection.style.display = "block";
     </script>
 </body>
 </html>

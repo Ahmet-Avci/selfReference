@@ -88,9 +88,6 @@
             <button onclick="setLanguage('en')">English</button>
             <button onclick="setLanguage('tr')">Türkçe</button>
         </div>
-        <div class="button-container">
-            <button id="monthly-chart-button" style="display: none;" onclick="showMonthlyChart()">Show Monthly Progress</button>
-        </div>
     </div>
 
     <!-- Soru ve Grafik -->
@@ -99,12 +96,16 @@
         <p id="question">Question will appear here</p>
         <div class="range-container">
             <input type="range" id="score-range" min="0" max="100" value="50" oninput="updateRangeValue(this.value)">
-            <p>Score: <span id="range-value">50</span></p>
+            <p id="score-label">Score: <span id="range-value">50</span></p>
         </div>
         <button onclick="submitAnswer()">Next</button>
     </div>
 
-    <canvas id="single-chart" style="display: none;"></canvas>
+    <!-- Bar Chart -->
+    <canvas id="bar-chart" style="display: none;"></canvas>
+
+    <!-- Line Chart -->
+    <button id="monthly-chart-button" style="display: none;" onclick="showMonthlyChart()">Show Monthly Progress</button>
     <canvas id="monthly-chart" style="display: none;"></canvas>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -118,7 +119,12 @@
                     "How much progress did I make towards my goals?",
                     "Was I able to maintain healthy relationships?",
                     "Did I prioritize self-care today?"
-                ]
+                ],
+                scoreLabel: "Score",
+                nextButton: "Next",
+                monthlyButton: "Show Monthly Progress",
+                barChartTitle: "Self-Awareness Scores",
+                monthlyChartTitle: "Monthly Progress"
             },
             tr: {
                 title: "Dinamik Öz Farkındalık",
@@ -128,7 +134,12 @@
                     "Hedeflerime doğru ne kadar ilerleme kaydettim?",
                     "Sağlıklı ilişkileri koruyabildim mi?",
                     "Bugün kendime öncelik verdim mi?"
-                ]
+                ],
+                scoreLabel: "Puan",
+                nextButton: "Sonraki",
+                monthlyButton: "Aylık İlerlemeyi Göster",
+                barChartTitle: "Öz Farkındalık Puanları",
+                monthlyChartTitle: "Aylık İlerleme"
             }
         };
 
@@ -141,20 +152,21 @@
         const questionElement = document.getElementById("question");
         const rangeValueElement = document.getElementById("range-value");
         const rangeElement = document.getElementById("score-range");
-        const singleChartElement = document.getElementById("single-chart");
+        const barChartElement = document.getElementById("bar-chart");
+        const monthlyChartElement = document.getElementById("monthly-chart");
+        const monthlyChartButton = document.getElementById("monthly-chart-button");
 
         function setLanguage(selectedLanguage) {
             language = selectedLanguage;
             currentQuestionIndex = 0;
             answers.length = 0;
 
-            // Dil Seçimi Ekranını Gizle
             languageSelection.style.display = "none";
-
-            // Soru Ekranını Göster
             questionContainer.style.display = "block";
 
-            // Başlangıç Sorusu Göster
+            document.getElementById("title").textContent = translations[language].title;
+            document.getElementById("score-label").textContent = translations[language].scoreLabel + ":";
+            document.querySelector("button").textContent = translations[language].nextButton;
             showQuestion();
         }
 
@@ -169,7 +181,7 @@
                 rangeElement.value = 50;
                 updateRangeValue(50);
             } else {
-                generateChart();
+                generateBarChart();
             }
         }
 
@@ -180,12 +192,22 @@
             showQuestion();
         }
 
-        function generateChart() {
+        function saveToHistory(averageScore) {
+            const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
+            const date = new Date().toISOString().split("T")[0];
+            history.push({ date, averageScore });
+            localStorage.setItem("selfAwarenessHistory", JSON.stringify(history));
+        }
+
+        function generateBarChart() {
             const labels = translations[language].questions;
             const positiveData = answers.map(score => (score >= 50 ? score - 50 : 0));
             const negativeData = answers.map(score => (score < 50 ? 50 - score : 0));
+            const averageScore = answers.reduce((sum, score) => sum + score, 0) / answers.length;
 
-            new Chart(singleChartElement, {
+            saveToHistory(averageScore);
+
+            new Chart(barChartElement, {
                 type: 'bar',
                 data: {
                     labels,
@@ -211,75 +233,62 @@
                     responsive: true,
                     plugins: {
                         legend: { position: 'top' },
-                        title: { display: true, text: 'Self-Awareness Scores' }
+                        title: { display: true, text: translations[language].barChartTitle }
                     },
                     scales: {
                         x: {
                             beginAtZero: true,
-                            ticks: {
-                                callback: value => `${value} %`
-                            }
+                            ticks: { callback: value => `${value} %` }
                         }
                     }
                 }
             });
 
             questionContainer.style.display = "none";
-            singleChartElement.style.display = "block";
+            barChartElement.style.display = "block";
+            monthlyChartButton.style.display = "block";
         }
 
-        // Dil Seçimi ile Başlat
-        languageSelection.style.display = "block";
+        function showMonthlyChart() {
+            const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
+            const maxDays = 30;
+            const recentHistory = history.slice(-maxDays);
 
-        function saveToHistory(score) {
-    const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
-    const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD formatında tarih
-    history.push({ date, score });
-    localStorage.setItem("selfAwarenessHistory", JSON.stringify(history));
-}
+            const labels = recentHistory.map(item => item.date);
+            const data = recentHistory.map(item => item.averageScore);
 
-function showMonthlyChart() {
-    const history = JSON.parse(localStorage.getItem("selfAwarenessHistory")) || [];
-    const maxDays = 30;
-
-    // Son 30 günü al
-    const recentHistory = history.slice(-maxDays);
-
-    const labels = recentHistory.map(item => item.date);
-    const data = recentHistory.map(item => item.score);
-
-    const monthlyChartElement = document.getElementById("monthly-chart");
-    monthlyChartElement.style.display = "block";
-
-    new Chart(monthlyChartElement, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Monthly Self-Awareness Progress',
-                data,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                fill: true,
-                tension: 0.2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: true, position: 'top' },
-                title: { display: true, text: 'Monthly Progress' }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: { callback: value => `${value} %` }
+            new Chart(monthlyChartElement, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: translations[language].monthlyChartTitle,
+                        data,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        title: { display: true, text: translations[language].monthlyChartTitle }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: value => `${value} %` }
+                        }
+                    }
                 }
-            }
+            });
+
+            barChartElement.style.display = "none";
+            monthlyChartElement.style.display = "block";
         }
-    });
-}
     </script>
 </body>
 </html>
